@@ -3,27 +3,77 @@
 local don = require("dragons_of_norrath")
 
 function event_enter_zone(e)
-	local qglobals = eq.get_qglobals(e.self);
-	if(e.self:GetLevel() >= 15 and qglobals['Wayfarer'] == nil) then
-		local zoneid = eq.get_zone_id();
-		if(e.self:GetStartZone() ~= zoneid and (zoneid == 1 or zoneid == 2 or zoneid == 3 or zoneid == 8 or zoneid == 9 
-		or zoneid == 10 or zoneid == 19 or zoneid == 22 or zoneid == 23 or zoneid == 24 or zoneid == 29 or zoneid == 30 
-		or zoneid == 34 or zoneid == 35 or zoneid == 40 or zoneid == 41 or zoneid == 42 or zoneid == 45 or zoneid == 49 
-		or zoneid == 52 or zoneid == 54 or zoneid == 55 or zoneid == 60 or zoneid == 61 or zoneid == 62 or zoneid == 67 
-		or zoneid == 68 or zoneid == 75 or zoneid == 82 or zoneid == 106 or zoneid == 155 or zoneid == 202 or zoneid == 382 
-		or zoneid == 383 or zoneid == 392 or zoneid == 393 or zoneid == 408)) then
-			e.self:Message(MT.Yellow, 
-				"A mysterious voice whispers to you, \'If you can feel me in your thoughts, know this -- "
-				.. "something is changing in the world and I reckon you should be a part of it. I do not know much, but I do know "
-				.. "that in every home city and the wilds there are agents of an organization called the Wayfarers Brotherhood. They "
-				.. "are looking for recruits . . . If you can hear this message, you are one of the chosen. Rush to your home city, or "
-				.. "search the West Karanas and Rathe Mountains for a contact if you have been exiled from your home for your deeds, "
-				.. "and find out more. Adventure awaits you, my friend.\'");
-		end
-	end
+	mysterious_voice(e)
 
-	if eq.get_zone_short_name() == "lavastorm" and e.self:GetGMStatus() >= 80 then 
+	if eq.is_lost_dungeons_of_norrath_enabled() and eq.get_zone_short_name() == "lavastorm" and e.self:GetGMStatus() >= 80 then 
 		e.self:Message(MT.DimGray, "There are GM commands available for Dragons of Norrath, use " .. eq.say_link("#don") .. " to get started")
+	end
+end
+
+function mysterious_voice(e)
+	if not eq.is_lost_dungeons_of_norrath_enabled() then
+		return
+	end
+	local qglobals = eq.get_qglobals(e.self);
+	if e.self:GetLevel() < 15 then
+		return
+	end
+	if qglobals.Wayfarer ~= nil then
+		return
+	end
+	local zone_id = eq.get_zone_id();
+
+	local voice_zones = {
+		Zone.qeynos,
+		Zone.qeynos2,
+		Zone.qrg,
+		Zone.freportn,
+		Zone.freportw,
+		Zone.freporte,
+		Zone.rivervale,
+		Zone.ecommons,
+		Zone.erudnint,
+		Zone.erudnext,
+		Zone.halas,
+		Zone.everfrost,
+		Zone.nro,
+		Zone.sro,
+		Zone.neriaka,
+		Zone.neriakb,
+		Zone.neriakc,
+		Zone.qcat,
+		Zone.oggok,
+		Zone.grobb,
+		Zone.gfaydark,
+		Zone.akanon,
+		Zone.kaladima,
+		Zone.felwithea,
+		Zone.felwitheb,
+		Zone.kaladimb,
+		Zone.butcher,
+		Zone.paineel,
+		Zone.cabwest,
+		Zone.cabeast,
+		Zone.sharvahl,
+		Zone.poknowledge,
+		Zone.freeporteast,
+		Zone.freeportwest,
+		Zone.northro,
+		Zone.southro,
+		Zone.commonlands
+	};
+
+	for _, zone in pairs(voice_zones) do
+		if zone == zone_id then
+			e.self:Message(MT.Yellow,
+			"A mysterious voice whispers to you, \'If you can feel me in your thoughts, know this -- "
+			.. "something is changing in the world and I reckon you should be a part of it. I do not know much, but I do know "
+			.. "that in every home city and the wilds there are agents of an organization called the Wayfarers Brotherhood. They "
+			.. "are looking for recruits . . . If you can hear this message, you are one of the chosen. Rush to your home city, or "
+			.. "search the West Karanas and Rathe Mountains for a contact if you have been exiled from your home for your deeds, "
+			.. "and find out more. Adventure awaits you, my friend.\'");
+			return
+		end
 	end
 end
 
@@ -34,7 +84,7 @@ function event_combine_validate(e)
 	--	["check_tradeskill"]    = e.tradeskill_id (not active)
 	if (e.recipe_id == 10344) then
 		if (e.validate_type:find("check_zone")) then
-			if (e.zone_id ~= 289 and e.zone_id ~= 290) then
+			if (e.zone_id ~= Zone.tipt and e.zone_id ~= Zone.vxed) then
 				return 1;
 			end
 		end
@@ -231,15 +281,23 @@ vet_aa = {
     [600]  = {441504000, true, true}, -- Blessing of the Devoted 14 yr
 }
 
+
 function event_connect(e)
+	grant_veteran_aa(e)
+	don.fix_invalid_faction_state(e.self)
+end
+
+function grant_veteran_aa(e)
+	if not eq.is_dragons_of_norrath_enabled() then
+		return
+	end
+
     local age = e.self:GetAccountAge();
     for aa, v in pairs(vet_aa) do
         if v[3] and (v[2] or age >= v[1]) then
             e.self:GrantAlternateAdvancementAbility(aa, 1)
         end
     end
-
-    don.fix_invalid_faction_state(e.self)
 end
 
 --[[
@@ -330,7 +388,14 @@ function event_level_up(e)
     if ( e.self:MaxSkill(v) > 0 and e.self:GetRawSkill(v) < 1 and e.self:CanHaveSkill(v) ) then
       e.self:SetSkill(v, 1);
     end
-      
+  end
+
+  if e.self:GetLevel() == 5 then
+    eq.popup("", "<c \"#F0F000\">Welcome to level 5.</c><br><br>You have just been granted a new ability called '<c \"#F0F000\">Origin</c>' which allows you to teleport back to your starting city.<br><br>Open the Alternate Advancement window by pressing the '<c \"#F0F000\">V</c>' key, look in the '<c \"#F0F000\">General' tab</c>, and find the '<c \"#F0F000\">Origin</c>' ability and select it.<br><br>Now press the '<c \"#F0F000\">Hotkey</c>' button to create a hotkey you can place on your hot bar.");
+  end
+
+  if e.self:GetLevel() == 10 and eq.is_dragons_of_norrath_enabled() then
+    eq.popup("", "<c \"#F0F000\">Welcome to level 10.</c><br><br>You are now able to begin the new player armor and weapon quests.  Speak with Castlen and Barrenzin or V`Lynn Renloe in the <c \"#66CCFF\">Plane of Knowledge</c> to begin.  One additional quest will become available to you at each level past level 10, so be sure to check back with these NPCs as you continue to gain experience.");
   end
 end
 
